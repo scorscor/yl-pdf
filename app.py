@@ -125,7 +125,7 @@ def replace_pdf_content(input_path, new_name):
         for r in replacements:
             rect = fitz.Rect(r['bbox'])
             page.add_redact_annot(rect, fill=False)
-            page.apply_redactions(images=0, graphics=0)
+            page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
             
             text_point = fitz.Point(r['bbox'][0], r['bbox'][3] - 1)
             try:
