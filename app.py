@@ -5,7 +5,6 @@ PDF 样品名称替换 Web 应用
 from flask import Flask, render_template, request, send_file
 import fitz
 import os
-import re
 import random
 from datetime import datetime, timedelta
 import io
@@ -38,35 +37,6 @@ def get_random_work_time():
     second = random.randint(0, 59)
     return f"{hour:02d}:{minute:02d}:{second:02d}"
 
-def find_sample_name_text(page):
-    blocks = page.get_text('dict')['blocks']
-    sample_name_header = None
-    all_spans = []
-    
-    for block in blocks:
-        if 'lines' in block:
-            for line in block['lines']:
-                for span in line['spans']:
-                    text = span['text'].strip()
-                    if text:
-                        all_spans.append({
-                            'text': text,
-                            'bbox': span['bbox'],
-                            'size': span['size']
-                        })
-                        if text == '样品名称':
-                            sample_name_header = span['bbox']
-    
-    if not sample_name_header:
-        return None
-    
-    header_x0, header_y0, header_x1, header_y1 = sample_name_header
-    for span in all_spans:
-        bbox = span['bbox']
-        if bbox[1] > header_y1 and bbox[0] < header_x1 + 20 and bbox[2] > header_x0 - 20:
-            return span
-    return None
-
 
 def replace_pdf_content(input_path, new_name):
     doc = fitz.open(input_path)
@@ -83,39 +53,37 @@ def replace_pdf_content(input_path, new_name):
     new_time_str = get_random_work_time()
     inspector = get_inspector_by_weekday(new_date)
     
-    date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}')
-    sample_id_pattern = re.compile(r'([A-Z]+)(\d{4})(\d{2})(\d{2})(\d+)')
-    time_pattern = re.compile(r'\d{2}:\d{2}:\d{2}')
-    inspector_pattern = re.compile(r'(李燕丽|张树芳|徐富)')
+    # 精确匹配原 PDF 中的固定文本
+    exact_replacements = {
+        '2024-05-17': new_date_str,
+        '09:02:47': new_time_str,
+        'ZCGPSC202405170007': f'ZCGPSC{new_date_compact}0007',
+        '芒果': new_name,
+        '李燕丽': inspector,
+        '报告签发日期：2024-05-17': f'报告签发日期：{new_date_str}',
+    }
     
     for page in doc:
         blocks = page.get_text('dict')['blocks']
         replacements = []
         
-        sample_info = find_sample_name_text(page)
-        if sample_info:
-            replacements.append({
-                'new_text': new_name,
-                'bbox': sample_info['bbox'],
-                'font_size': sample_info['size']
-            })
-        
         for block in blocks:
             if 'lines' in block:
                 for line in block['lines']:
                     for span in line['spans']:
-                        text = span['text']
+                        text = span['text'].strip()
                         bbox = span['bbox']
                         
-                        if sample_info and bbox == sample_info['bbox']:
-                            continue
-                        
-                        if date_pattern.search(text) or sample_id_pattern.search(text) or time_pattern.search(text) or inspector_pattern.search(text):
-                            new_text = date_pattern.sub(new_date_str, text)
-                            new_text = sample_id_pattern.sub(r'\g<1>' + new_date_compact + r'\5', new_text)
-                            new_text = time_pattern.sub(new_time_str, new_text)
-                            new_text = inspector_pattern.sub(inspector, new_text)
-                            
+                        # 精确匹配
+                        if text in exact_replacements:
+                            replacements.append({
+                                'new_text': exact_replacements[text],
+                                'bbox': bbox,
+                                'font_size': span['size']
+                            })
+                        # 处理包含日期时间的组合文本，如 "2024-05-17 09:02:47"
+                        elif '2024-05-17' in text and '09:02:47' in text:
+                            new_text = text.replace('2024-05-17', new_date_str).replace('09:02:47', new_time_str)
                             replacements.append({
                                 'new_text': new_text,
                                 'bbox': bbox,
