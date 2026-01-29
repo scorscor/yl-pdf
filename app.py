@@ -71,9 +71,9 @@ def find_sample_name_text(page):
 def replace_pdf_content(input_path, new_name):
     doc = fitz.open(input_path)
     
-    font_path = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"  # Linux 中文字体
+    font_path = "/usr/share/fonts/simsun.ttc"  # Docker 容器内宋体
     if not os.path.exists(font_path):
-        font_path = "C:/Windows/Fonts/simsun.ttc"  # Windows 备用
+        font_path = "C:/Windows/Fonts/simsun.ttc"  # Windows 本地开发
     if not os.path.exists(font_path):
         font_path = None
     
@@ -125,8 +125,12 @@ def replace_pdf_content(input_path, new_name):
         for r in replacements:
             rect = fitz.Rect(r['bbox'])
             page.add_redact_annot(rect, fill=False)
-            page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
-            
+        
+        # 一次性应用所有 redaction
+        page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+        
+        # 重新插入文字
+        for r in replacements:
             text_point = fitz.Point(r['bbox'][0], r['bbox'][3] - 1)
             try:
                 if font_path:

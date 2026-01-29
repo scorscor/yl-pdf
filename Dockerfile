@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安装中文字体
-RUN apt-get update && apt-get install -y fonts-wqy-zenhei && rm -rf /var/lib/apt/lists/*
+# 复制宋体字体
+COPY simsun.ttc /usr/share/fonts/simsun.ttc
 
 # 安装依赖
 COPY requirements.txt .
