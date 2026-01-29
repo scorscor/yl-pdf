@@ -92,10 +92,8 @@ def replace_pdf_content(input_path, new_name):
         
         for r in replacements:
             rect = fitz.Rect(r['bbox'])
-            page.add_redact_annot(rect, fill=False)
-        
-        # 一次性应用所有 redaction
-        page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+            # 用白色矩形覆盖原文字
+            page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
         
         # 重新插入文字
         for r in replacements:
